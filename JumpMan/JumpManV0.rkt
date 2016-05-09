@@ -1,0 +1,136 @@
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+#reader(lib "htdp-beginner-reader.ss" "lang")((modname JumpManV0) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #t)))
+(require 2htdp/image)
+(require 2htdp/universe)
+
+;; CONSTANTS ==========================
+
+(define WIDTH 600)
+(define HEIGHT 600)
+(define MTS (empty-scene WIDTH HEIGHT "sky blue"))
+
+
+
+
+(define HEAD-SIZE 20)
+(define BODY-WIDTH 20)
+(define BODY-HEIGHT 40)
+(define PANTS-WIDTH BODY-WIDTH)
+(define PANTS-HEIGHT BODY-HEIGHT)
+(define PLAYER-IMAGE (above (circle HEAD-SIZE "solid" "tan")
+                            (rectangle BODY-WIDTH BODY-HEIGHT "solid" "pink")
+                            (rectangle PANTS-WIDTH PANTS-HEIGHT "solid" "blue")))
+
+(define GROUND (- HEIGHT (+ (/ BODY-HEIGHT 2) PANTS-HEIGHT))) ;!!! Change based on player body
+
+(define GRAVITY 10) ; downward force
+(define SPEED-X 10) ; horizontal speed
+(define JUMP-START 50) ; initial upward force
+
+
+
+
+
+;; DATA DEFINITIONS ============================
+
+(define-struct player (x y jump))
+;; Player is (make-player Integer[0, WIDTH] Integer[0, GROUND] Integer(infinity, JUMP-START])
+;; interp. a player at coordinates (x, y), jumping with speed jump
+
+(define PLAYER-1 (make-player 50 50 0)) ; Player at (50, 50), not jumping
+(define PLAYER-2 (make-player 100 170 10)) ; Player at (100, 170), jumping with speed 10
+
+#;
+(define (fn-for-player p)
+  (... (player-x p)     ;Integer[0, WIDTH]
+       (player-y p)     ;Integer[0, GROUND]
+       (player-jump p)));Integer(infinity, JUMP-START]
+  
+;; Template rules used:
+;;  - compound: 3 fields
+
+
+
+;; FUNCTIONS ====================================
+
+;; Player -> Player
+;; starts the world program with (make-player (/ WIDTH 2) GROUND 0)
+
+(define (main p)
+  (big-bang p
+            (on-tick tick)
+            (to-draw render)
+            (on-key handle-key)))
+
+
+
+;; Player -> Player
+;; Resolve's Player's jump if jumping 
+
+
+(check-expect (tick (make-player 100 GROUND 0)) (make-player 100 GROUND  0)) ; Player on ground stays still
+(check-expect (tick (make-player 200 GROUND JUMP-START)) (make-player 200 (- GROUND JUMP-START) (- JUMP-START GRAVITY))) ; Player starts jumping
+(check-expect (tick (make-player 300 200 (- JUMP-START (* 3 GRAVITY)))) (make-player 300 (- 200 (- JUMP-START (* 3 GRAVITY))) (- JUMP-START (* 4 GRAVITY)))) ; Jumping after 3 ticks of falling
+(check-expect (tick (make-player 400 300 0)) (make-player 400 (- 300 0) (- 0 GRAVITY))) ; free fall
+
+;(define (tick j) (make-player 10 10 0)) ; Stub
+
+#;
+(define (tick p) ; Template from Player
+  (... (player-x p)     ;Integer[0, WIDTH]
+       (player-y p)     ;Integer[0, GROUND]
+       (player-jump p)));Integer(infinity, JUMP-START]
+
+(define (tick p)
+  (cond [(and (= (player-y p) GROUND)(false? (= (player-jump p) JUMP-START))) (make-player (player-x p) (player-y p) 0)] ; If on ground and not jumping, stays on ground
+        [(and (= (player-y p) GROUND)(= (player-jump p) JUMP-START)) (make-player (player-x p) (- (player-y p) JUMP-START) (- (player-jump p) GRAVITY))] ; If starting a jump, jump!
+        [else (make-player (player-x p) (- (player-y p) (player-jump p)) (- (player-jump p) GRAVITY))]))
+      
+       
+
+
+;; Player -> Image
+;; draws the player at (x,y)
+;;!!!
+
+(check-expect (render (make-player 300 GROUND 0)) (place-image PLAYER-IMAGE 300 GROUND MTS)) ; Player drawn at (100, GROUND)
+(check-expect (render (make-player 350 200 JUMP-START)) (place-image PLAYER-IMAGE 350 200 MTS)) ; Player drawn at (100, 50)
+
+;(define (render p) MTS) ; Stub
+
+#;
+(define (render p) ; Template from Player
+  (... (player-x p)     ;Integer[0, WIDTH]
+       (player-y p)     ;Integer[0, GROUND]
+       (player-jump p)));Integer(infinity, JUMP-START]
+
+(define (render p) 
+  (place-image PLAYER-IMAGE (player-x p) (player-y p) MTS))      
+
+;; Key Player -> Player
+;; sets player-jump to JUMP-START on key press
+;;!!!
+
+
+(check-expect (handle-key (make-player 100 GROUND 0) "a") (make-player 100 GROUND 0)) ; no response
+(check-expect (handle-key (make-player 300 GROUND 0) " ") (make-player 300 GROUND JUMP-START)) ; If on ground, jumps!
+(check-expect (handle-key (make-player 400 400 -10) " ") (make-player 400 400 -10)) ; If pressed in air, no response
+(check-expect (handle-key (make-player 200 200 10) "left") (make-player (- 200 SPEED-X) 200 10)) ; player moves SPEED-X left
+(check-expect (handle-key (make-player 100 GROUND 0) "right") (make-player (+ 100 SPEED-X) GROUND 0)) ; player moves SPEED-X right
+
+;(define (handle-key e ke) MTS) ; Stub
+
+#;
+(define (handle-key p ke)  ; Template from Player
+  (... ke (player-x p)     ;Integer[0, WIDTH]
+       (player-y p)        ;Integer[0, GROUND]
+       (player-jump p)))   ;Integer(infinity, JUMP-START]
+
+(define (handle-key p ke) ;
+  (cond [(and (= (player-y p) GROUND)(string=? ke " ")) (make-player (player-x p) (player-y p) JUMP-START)] ; Player jumps on spacebar
+        [(string=? ke "left") (make-player (- (player-x p) SPEED-X) (player-y p) (player-jump p))] ; Player moves left
+        [(string=? ke "right") (make-player (+ (player-x p) SPEED-X) (player-y p) (player-jump p))] ; Player moves left
+        [else p])) 
+      
+(main (make-player (/ WIDTH 2) GROUND 0))
